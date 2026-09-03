@@ -86,6 +86,14 @@ body{background:var(--champagne);color:var(--ink);font-family:'Inter',sans-serif
 .door.locked .veil{background:linear-gradient(180deg,rgba(246,237,223,.6),rgba(239,225,203,.52))}
 .door.locked .day .d{color:var(--ink-soft);text-shadow:none}
 .door.locked{cursor:default}
+.lock-cover{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:20px;text-align:center;color:#65513f;opacity:0;pointer-events:none;transition:opacity .65s var(--ease);background:linear-gradient(145deg,rgba(247,224,191,.95),rgba(226,211,187,.94))}
+.door.lock-b .lock-cover{background:linear-gradient(145deg,rgba(218,226,208,.96),rgba(239,222,195,.94))}
+.door.lock-c .lock-cover{background:linear-gradient(145deg,rgba(235,214,189,.96),rgba(205,217,197,.94))}
+.door.locked .lock-cover{opacity:1}
+.door.locked .num,.door.locked .day,.door.locked .seal{opacity:0}
+.lock-cover .lock-icon{font:400 25px 'Playfair Display',serif;color:var(--ember);margin-bottom:3px}
+.lock-cover strong{font:500 clamp(18px,2vw,25px) 'Playfair Display',serif}
+.lock-cover small{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
 .door.open-able::after{content:"";position:absolute;inset:0;border-radius:var(--r);
   box-shadow:inset 0 0 0 2px rgba(247,206,155,.9),0 0 34px rgba(233,164,94,.42);animation:pulse 3.2s ease-in-out infinite;pointer-events:none}
 @keyframes pulse{0%,100%{opacity:.42}50%{opacity:1}}
@@ -341,7 +349,9 @@ const CHAPTERS=[
 ];
 
 const today=new Date();
-const simDay=today.getMonth()===11?Math.min(24,Math.max(1,today.getDate())):24;
+const launchDay=new Date(2026,11,1);
+const testingMode=today<launchDay;
+let simDay=1;
 let opened=new Set(JSON.parse(localStorage.getItem('beumom-opened-days')||'[]'));
 const key=n=>'d'+String(n).padStart(2,'0');
 
@@ -357,10 +367,11 @@ CHAPTERS.forEach((ch,ci)=>{
     r.f.forEach(f=>{
       const d=DAYS[idx++];
       const b=document.createElement('button');
-      b.className='door';b.style.flexGrow=f;b.dataset.n=d.n;
+      b.className='door lock-'+['a','b','c'][d.n%3];b.style.flexGrow=f;b.dataset.n=d.n;
       b.innerHTML=`<img src="${IMG[key(d.n)]}" alt="Ray the fox — ${d.title}"><div class="veil"></div>
         <div class="num">${String(d.n).padStart(2,'0')}</div><div class="seal"></div>
-        <div class="day"><div class="d">December ${d.n}</div><div class="t">${d.title}</div></div>`;
+        <div class="day"><div class="d">December ${d.n}</div><div class="t">${d.title}</div></div>
+        <div class="lock-cover" aria-hidden="true"><span class="lock-icon">✦</span><strong>December ${d.n}</strong><small>Come back soon</small></div>`;
       b.addEventListener('click',()=>openDoor(d.n,b));
       row.appendChild(b);
     });
@@ -381,7 +392,13 @@ OP.forEach(([x,y],i)=>{
 const orns=[...og.children];
 
 const doors=[...document.querySelectorAll('.door')];
+function updateAvailableDay(){
+  if(testingMode){let n=1;while(n<=24&&opened.has(n))n++;simDay=Math.min(24,n);return}
+  if(today.getFullYear()>2026||today.getMonth()>11){simDay=24;return}
+  simDay=today.getMonth()===11?Math.min(24,Math.max(1,today.getDate())):0;
+}
 function refresh(){
+  updateAvailableDay();
   let missed=false;
   doors.forEach(b=>{
     const n=+b.dataset.n, avail=simDay>=n;
@@ -404,7 +421,7 @@ function toast(t){const e=document.getElementById('toast');e.textContent=t;e.cla
 function openDoor(n,b){
   const d=DAYS[n-1];
   if(simDay<n){b.classList.add('shake');setTimeout(()=>b.classList.remove('shake'),520);
-    toast('This one opens on December '+n+'.');return}
+    toast(testingMode?'Open the previous gift first.':'This one opens on December '+n+'.');return}
   opened.add(n);
   localStorage.setItem('beumom-opened-days',JSON.stringify([...opened]));
   refresh();
